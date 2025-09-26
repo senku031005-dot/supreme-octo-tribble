@@ -167,7 +167,7 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
 
     <!-- Password field -->
     <div class="login-field">
-      <label for="loginPassword" style="display:block;font-size:.9rem;color:#444;margin-bottom:6px;">Contraseña (admin)</label>
+      <label for="loginPassword" style="display:block;font-size:.9rem;color:#444;margin-bottom:6px;"></label>
       <input id="loginPassword" type="password" placeholder="Introduce la contraseña" autocomplete="current-password" />
       <button id="togglePwd" class="password-toggle" aria-label="Mostrar contraseña">Mostrar</button>
       <div style="margin-top:6px"><span id="capsIndicator">MAYÚS</span></div>
@@ -336,7 +336,7 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
    ========================= */
 // Contraseña admin (cliente-side). Cambia la cadena si quieres otra contraseña.
 // Nota: esto es visible en el código del navegador; para seguridad real, usa autenticación servidor.
-const ADMIN_PASSWORD = 'bmofi123';
+const ADMIN_PASSWORD = 'ofi123';
 
 /* =========================
    DATOS (LocalStorage)
@@ -676,3 +676,4 @@ window._app = { articulos, movimientos, generarCodigo, guardarDatos, mostrarInve
 </script>
 </body>
 </html>
+

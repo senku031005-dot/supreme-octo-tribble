@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inventario - App con Login</title>
+
+<!-- XLSX -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --primary:#860063;
+  --accent:#f78c2a;
+  --bg:#f2f2f2;
+  --card:#fff;
+  --text:#222;
+  --success:#2d862d;
+  --error:#cc0000;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
+
+/* NAV */
+nav{position:sticky;top:0;background:var(--primary);color:#fff;display:flex;gap:8px;padding:10px;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);flex-wrap:wrap}
+nav button{background:#9a007d;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;min-width:110px;max-width:170px;flex:1 1 auto;transition:all .18s}
+nav button:hover{background:var(--accent)} nav button.active{background:var(--accent);box-shadow:0 4px 8px rgba(0,0,0,.12)}
+nav button.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* CONTAINER */
+.container{max-width:920px;margin:16px auto;padding:0 12px 60px}
+
+/* SECTION */
+section{display:none;margin-top:12px} section.active{display:block}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.section-head h2{color:var(--primary);font-size:1.2rem}
+
+/* CARD */
+.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(0,0,0,.08)}
+
+/* FORMS */
+label{display:block;font-size:.9rem;margin-bottom:6px;color:#444}
+input[type="text"],input[type="number"],input[type="date"],select{width:100%;padding:12px;border-radius:10px;border:1px solid #d0d0d0;margin-bottom:12px;font-size:1rem}
+input:focus,select:focus{outline:none;border:2px solid var(--primary)}
+button.submitBtn{width:100%;padding:12px;background:var(--primary);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:700}
+button.exportBtn{background:var(--primary);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+/* STOCK BADGE */
+#stockActualCard{display:inline-block;padding:8px 10px;border-radius:10px;background:rgba(247,140,42,.15);font-weight:700;margin-bottom:10px}
+
+/* TABLE */
+.table-wrap{overflow:auto;border-radius:10px;border:1px solid #eee}
+table{width:100%;border-collapse:collapse;min-width:420px}
+thead th{background:var(--primary);color:#fff;padding:10px;text-align:left;font-weight:700}
+tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
+
+/* TOAST */
+#toast{position:fixed;top:18px;right:18px;z-index:9999;min-width:220px;padding:12px 16px;color:#fff;border-radius:10px;font-weight:700;box-shadow:0 8px 22px rgba(0,0,0,.12);transform:translateY(-20px);opacity:0;transition:all .25s}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--success)} #toast.error{background:var(--error)}
+
+/* LOGIN OVERLAY */
+#loginOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000}
+#loginCard{width:96%;max-width:420px;background:var(--card);border-radius:14px;padding:18px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+#loginCard h3{color:var(--primary);margin-bottom:12px}
+.login-actions{display:flex;gap:10px;margin-top:12px}
+.btn-ghost{background:transparent;border:1px solid #ddd;padding:10px;border-radius:8px;cursor:pointer}
+.btn-primary{background:var(--primary);color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer}
+
+/* small */
+@media(max-width:480px){
+  nav button{max-width:100%}
+  .section-head h2{font-size:1.05rem}
+  th,td{font-size:.95rem}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<!-- ====== LOGIN OVERLAY (REEMPLAZAR EL ANTERIOR) ====== -->
+<style>
+/* Login app-like styles (pegar esto en la sección <style> o justo antes del overlay) */
+#loginOverlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(134,0,99,0.12), rgba(247,140,42,0.06));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  backdrop-filter: blur(6px);
+}
+
+#loginCard {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+  transform: translateY(8px);
+  transition: transform .22s ease, box-shadow .22s;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+}
+#loginCard:focus-within { transform: translateY(0); box-shadow: 0 28px 54px rgba(0,0,0,0.22); }
+
+.login-header {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.login-logo {
+  width:46px; height:46px; border-radius:10px;
+  background: linear-gradient(135deg, #860063, #f78c2a);
+  display:flex; align-items:center; justify-content:center; color:white; font-weight:800;
+  box-shadow: 0 6px 18px rgba(134,0,99,0.18);
+  font-size:1.05rem;
+}
+.login-title { font-size:1.1rem; color:var(--primary, #860063); font-weight:800; }
+.login-sub { font-size:0.9rem; color:#666; margin-top:4px; }
+
+.login-field { margin-top:10px; position:relative; }
+.login-field input[type="password"],
+.login-field input[type="text"] {
+  width:100%; padding:12px 44px 12px 12px; border-radius:10px; border:1px solid #e2e2e2; font-size:1rem;
+}
+.login-actions { display:flex; gap:10px; margin-top:14px; }
+.btn-primary {
+  background: linear-gradient(90deg,#860063, #9a007d); color:#fff; border:0; padding:10px 12px;
+  border-radius:10px; font-weight:700; cursor:pointer; flex:1;
+  box-shadow:0 8px 18px rgba(134,0,99,0.12);
+}
+.btn-ghost {
+  background:transparent; border:1px solid #ddd; padding:10px 12px; border-radius:10px; cursor:pointer; flex:1;
+}
+
+.password-toggle {
+  position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:0; cursor:pointer;
+  padding:6px; border-radius:8px; color:#666; font-weight:700;
+}
+.small-note { font-size:0.85rem; color:#777; margin-top:10px; }
+
+/* caps lock indicator */
+#capsIndicator { display:inline-block; margin-left:8px; font-size:0.85rem; color:#b33; font-weight:700; opacity:0; transition:opacity .18s; }
+
+/* small screens */
+@media(max-width:420px){
+  #loginCard{ padding:16px; border-radius:12px; }
+  .login-logo{ width:42px; height:42px; }
+}
+</style>
+
+<!-- Overlay HTML (reemplazar el bloque anterior) -->
+<div id="loginOverlay" aria-hidden="false">
+  <div id="loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="login-header">
+      <div class="login-logo">IN</div>
+      <div>
+        <div id="loginTitle" class="login-title">Inventario — Acceso</div>
+        <div class="login-sub">Inicia sesión para acceder a Entradas y Salidas</div>
+      </div>
+    </div>
+
+    <!-- Password field -->
+    <div class="login-field">
+      <label for="loginPassword" style="display:block;font-size:.9rem;color:#444;margin-bottom:6px;">Contraseña (admin)</label>
+      <input id="loginPassword" type="password" placeholder="Introduce la contraseña" autocomplete="current-password" />
+      <button id="togglePwd" class="password-toggle" aria-label="Mostrar contraseña">Mostrar</button>
+      <div style="margin-top:6px"><span id="capsIndicator">MAYÚS</span></div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="login-actions">
+      <button id="btnLogin" class="btn-primary" title="Entrar como administrador">Entrar</button>
+      <button id="btnGuest" class="btn-ghost" title="Entrar como invitado (solo ver inventario)">Entrar sin usuario</button>
+    </div>
+
+    <div class="small-note">
+      <strong>Nota:</strong> El modo Invitado solo permite visualizar el inventario. La autenticación es local en este demo.
+    </div>
+  </div>
+</div>
+
+<!-- Login helper JS (reemplaza / añade a tu script; mantiene mismos IDs y compatibilidad) -->
+<script>
+  (function(){
+    const loginOverlay = document.getElementById('loginOverlay');
+    const loginPassword = document.getElementById('loginPassword');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnGuest = document.getElementById('btnGuest');
+    const togglePwd = document.getElementById('togglePwd');
+    const capsIndicator = document.getElementById('capsIndicator');
+
+    // show/hide password toggle
+    togglePwd.addEventListener('click', (e) => {
+      e.preventDefault();
+      if(loginPassword.type === 'password'){ loginPassword.type = 'text'; togglePwd.textContent = 'Ocultar'; }
+      else { loginPassword.type = 'password'; togglePwd.textContent = 'Mostrar'; }
+      loginPassword.focus();
+    });
+
+    // caps lock indicator
+    loginPassword.addEventListener('keyup', (ev) => {
+      if(ev.getModifierState && ev.getModifierState('CapsLock')){
+        capsIndicator.style.opacity = 1;
+      } else {
+        capsIndicator.style.opacity = 0;
+      }
+    });
+
+    // allow Enter to submit
+    loginPassword.addEventListener('keydown', (ev) => {
+      if(ev.key === 'Enter'){
+        ev.preventDefault();
+        btnLogin.click();
+      }
+    });
+
+    // keep existing listeners (if already attached in your main script)
+    // If main script already registers btnLogin/btnGuest, this will add an extra listener.
+    // To avoid duplicates you can remove old listeners or ensure they use the same logic.
+    // For simplicity we re-dispatch custom events that your main script can listen to:
+    btnLogin.addEventListener('click', () => {
+      // dispatch a custom event so main app handles auth logic (keeps separation)
+      const ev = new CustomEvent('appAttemptLogin', { detail: { password: loginPassword.value } });
+      window.dispatchEvent(ev);
+    });
+
+    btnGuest.addEventListener('click', () => {
+      const ev = new CustomEvent('appGuestLogin', {});
+      window.dispatchEvent(ev);
+    });
+
+    // If your app doesn't listen for custom events, fallback to calling the old global handlers
+    // (this ensures compatibility with the previous code that used btnLogin.addEventListener)
+    // Attempt to call any globally bound click handlers after dispatch (safe fail)
+    btnLogin.addEventListener('click', () => {
+      try { /* no-op */ } catch(e){ console.warn(e); }
+    });
+
+    // focus first field on open
+    setTimeout(()=> loginPassword.focus(), 200);
+  })();
+</script>
+
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- NAV -->
+<nav>
+  <button id="navInventario" onclick="showTab('inventario')">Inventario</button>
+  <button id="navEntrada" onclick="showTab('entrada')">Entrada</button>
+  <button id="navSalida" onclick="showTab('salida')">Salida</button>
+</nav>
+
+<!-- APP CONTAINER -->
+<div class="container">
+
+  <!-- INVENTARIO -->
+  <section id="inventario">
+    <div class="section-head">
+      <h2>Inventario Actual</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="filterInventario" type="text" placeholder="Filtrar por código o nombre" style="padding:10px;border-radius:8px;border:1px solid #ddd" oninput="mostrarInventario()" />
+        <button class="exportBtn" id="exportInventarioBtn" onclick="exportExcelInventario()">Exportar Inventario</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap" style="max-height:420px;overflow:auto">
+        <table id="tablaInventario" aria-describedby="inventario">
+          <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENTRADA -->
+  <section id="entrada">
+    <div class="section-head">
+      <h2>Entrada de Artículo</h2>
+      <button class="exportBtn" id="exportEntradasBtn" onclick="exportExcelEntradas()">Exportar Entradas</button>
+    </div>
+    <div class="card">
+      <form id="formEntrada" onsubmit="registrarEntrada(event)">
+        <label for="entradaCodigo">Código (automático si nuevo)</label>
+        <input id="entradaCodigo" type="text" placeholder="Código (dejar vacío para nuevo artículo)">
+        <label for="entradaNombre">Nombre *</label>
+        <input id="entradaNombre" type="text" placeholder="Nombre" required>
+        <label for="entradaFecha">Fecha *</label>
+        <input id="entradaFecha" type="date" required>
+        <label for="entradaCantidad">Cantidad *</label>
+        <input id="entradaCantidad" type="number" placeholder="Cantidad" min="1" required>
+        <label for="entradaFactura">Número de factura</label>
+        <input id="entradaFactura" type="text" maxlength="50" placeholder="Número de factura">
+        <button type="submit" class="submitBtn" id="btnRegistrarEntrada">Registrar Entrada</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- SALIDA -->
+  <section id="salida">
+    <div class="section-head">
+      <h2>Salida de Artículo</h2>
+      <button class="exportBtn" id="exportSalidasBtn" onclick="exportExcelSalidas()">Exportar Salidas</button>
+    </div>
+    <div class="card">
+      <form id="formSalida" onsubmit="registrarSalida(event)">
+        <label for="salidaCodigo">Código *</label>
+        <input id="salidaCodigo" type="text" placeholder="Código" required oninput="autocompletarSalida()" />
+        <label for="salidaNombre">Nombre</label>
+        <input id="salidaNombre" type="text" readonly placeholder="Nombre" />
+        <div id="stockActualCard">Stock actual: <span id="stockActual">0</span></div>
+        <label for="salidaArea">Área / Encargado *</label>
+        <input id="salidaArea" type="text" placeholder="Área / Encargado" required>
+        <label for="salidaFecha">Fecha *</label>
+        <input id="salidaFecha" type="date" required>
+        <label for="salidaCantidad">Cantidad *</label>
+        <input id="salidaCantidad" type="number" placeholder="Cantidad" min="1" required>
+        <label for="salidaComentario">Comentario</label>
+        <input id="salidaComentario" type="text" maxlength="200" placeholder="Comentario">
+        <button type="submit" class="submitBtn" id="btnRegistrarSalida">Registrar Salida</button>
+      </form>
+    </div>
+  </section>
+
+</div> <!-- /container -->
+
+<script>
+/* =========================
+   CONFIG (cambia aquí)
+   ========================= */
+// Contraseña admin (cliente-side). Cambia la cadena si quieres otra contraseña.
+// Nota: esto es visible en el código del navegador; para seguridad real, usa autenticación servidor.
+const ADMIN_PASSWORD = 'bmofi123';
+
+/* =========================
+   DATOS (LocalStorage)
+   ========================= */
+let articulos = JSON.parse(localStorage.getItem('articulos') || '[]');
+let movimientos = JSON.parse(localStorage.getItem('movimientos') || '[]');
+
+/* =========================
+   ESTADO DE SESIÓN
+   role = 'locked' | 'admin' | 'guest'
+   ========================= */
+let role = 'locked'; // al inicio bloqueado hasta login
+
+/* =========================
+   ELEMENTOS DOM
+   ========================= */
+const loginOverlay = document.getElementById('loginOverlay');
+const btnLogin = document.getElementById('btnLogin');
+const btnGuest = document.getElementById('btnGuest');
+const loginPassword = document.getElementById('loginPassword');
+const toast = document.getElementById('toast');
+
+/* =========================
+   UTIL: Toast
+   ========================= */
+function showToast(msg, type='success'){
+  toast.textContent = msg;
+  toast.className = 'show ' + (type === 'error' ? 'error' : 'success');
+  setTimeout(()=>{ toast.className = ''; }, 3200);
+}
+
+/* =========================
+   LOGIN HANDLERS
+   ========================= */
+btnLogin.addEventListener('click', () => {
+  const pwd = loginPassword.value || '';
+  if(pwd === ADMIN_PASSWORD){
+    role = 'admin';
+    loginOverlay.style.display = 'none';
+    initAfterLogin();
+    showToast('Acceso correcto. Bienvenido (Admin)', 'success');
+  } else {
+    showToast('Contraseña incorrecta', 'error');
+  }
+});
+
+// Entrar sin usuario -> guest (solo vista inventario, no editar)
+btnGuest.addEventListener('click', () => {
+  role = 'guest';
+  loginOverlay.style.display = 'none';
+  initAfterLogin();
+  showToast('Acceso como Invitado — Solo inventario', 'success');
+});
+
+/* =========================
+   INICIALIZAR APP DESPUES DE LOGIN
+   ========================= */
+function initAfterLogin(){
+  // mostrar inventario por defecto
+  showTab('inventario');
+  // habilitar/inhabilitar botones según role
+  const navEntrada = document.getElementById('navEntrada');
+  const navSalida = document.getElementById('navSalida');
+  const btnRegistrarEntrada = document.getElementById('btnRegistrarEntrada');
+  const btnRegistrarSalida = document.getElementById('btnRegistrarSalida');
+  const exportEntradasBtn = document.getElementById('exportEntradasBtn');
+  const exportSalidasBtn = document.getElementById('exportSalidasBtn');
+  const exportInventarioBtn = document.getElementById('exportInventarioBtn');
+
+  if(role === 'admin'){
+    navEntrada.classList.remove('disabled');
+    navSalida.classList.remove('disabled');
+    btnRegistrarEntrada.disabled = false;
+    btnRegistrarSalida.disabled = false;
+    exportEntradasBtn.disabled = false;
+    exportSalidasBtn.disabled = false;
+    exportInventarioBtn.disabled = false;
+    // ensure buttons visible
+    navEntrada.style.display = '';
+    navSalida.style.display = '';
+  } else { // guest
+    // hide or disable Entrada/Salida functionality
+    navEntrada.classList.add('disabled');
+    navSalida.classList.add('disabled');
+    btnRegistrarEntrada.disabled = true;
+    btnRegistrarSalida.disabled = true;
+    exportEntradasBtn.disabled = true;
+    exportSalidasBtn.disabled = true;
+    exportInventarioBtn.disabled = false; // guest can export inventory
+    // optionally hide the Entrada/Salida buttons so guest doesn't see them
+    navEntrada.style.display = 'none';
+    navSalida.style.display = 'none';
+  }
+
+  // populate UI
+  actualizarSelect(); // in case entry/exit need select (kept for compatibility)
+  mostrarInventario();
+}
+
+/* =========================
+   NAV / TABS
+   showTab: comprueba role y evita cambiar si guest
+   ========================= */
+function showTab(tab){
+  // if guest tries to access restricted tab -> block
+  if(role === 'guest' && (tab === 'entrada' || tab === 'salida')){
+    showToast('Acceso denegado. Modo Invitado: solo Inventario', 'error');
+    tab = 'inventario';
+  }
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(tab);
+  if(el) el.classList.add('active');
+
+  // actualizar nav button active class
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  const navButtons = document.querySelectorAll('nav button');
+  navButtons.forEach(nb => {
+    if(nb.getAttribute('onclick') && nb.getAttribute('onclick').includes(tab)){
+      nb.classList.add('active');
+    }
+  });
+}
+
+/* =========================
+   SELECT / INVENTORY
+   ========================= */
+function actualizarSelect(){
+  // kept for backward compatibility (not visible to guest)
+  // if you removed the select from UI, this function can remain harmless
+  // (no-op) or be removed.
+  // No UI select in this minimal variant.
+}
+
+function mostrarInventario(){
+  const tbody = document.querySelector('#tablaInventario tbody');
+  const filterText = (document.getElementById('filterInventario')?.value || '').toLowerCase();
+  tbody.innerHTML = '';
+  const list = articulos
+    .filter(a => {
+      if(!filterText) return true;
+      return a.codigo.toLowerCase().includes(filterText) || a.nombre.toLowerCase().includes(filterText);
+    })
+    .sort((x,y) => x.codigo.localeCompare(y.codigo));
+  list.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* =========================
+   CODE GENERATOR (AP###)
+   ========================= */
+function generarCodigo(){
+  let max = 0;
+  articulos.forEach(a => {
+    if(typeof a.codigo === 'string' && a.codigo.startsWith('AP')){
+      const n = parseInt(a.codigo.slice(2),10);
+      if(!isNaN(n) && n>max) max = n;
+    }
+  });
+  max++;
+  return 'AP' + String(max).padStart(3,'0');
+}
+
+/* =========================
+   REGISTRAR ENTRADA (solo admin)
+   ========================= */
+function registrarEntrada(e){
+  e?.preventDefault();
+  if(role !== 'admin'){ showToast('No autorizado en modo Invitado', 'error'); return; }
+
+  const codigoInput = document.getElementById('entradaCodigo');
+  const nombreInput = document.getElementById('entradaNombre');
+  const fechaInput = document.getElementById('entradaFecha');
+  const cantidadInput = document.getElementById('entradaCantidad');
+  const facturaInput = document.getElementById('entradaFactura');
+
+  let codigo = codigoInput.value.trim();
+  const nombre = nombreInput.value.trim();
+  const fecha = fechaInput.value;
+  const cantidad = parseInt(cantidadInput.value,10);
+  const factura = facturaInput.value.trim();
+
+  if(!nombre || !fecha || Number.isNaN(cantidad) || cantidad <= 0){
+    showToast('Complete todos los campos correctamente.', 'error'); return;
+  }
+  if(new Date(fecha) > new Date()){
+    showToast('La fecha no puede ser futura.', 'error'); return;
+  }
+  if(!codigo) codigo = generarCodigo();
+  const existingByCode = articulos.find(a => a.codigo === codigo);
+  if(existingByCode && existingByCode.nombre !== nombre){
+    showToast('Código ya existe para otro artículo.', 'error'); return;
+  }
+  let art = articulos.find(a => a.codigo === codigo);
+  if(art) art.stock = Number(art.stock) + Number(cantidad);
+  else { art = { codigo, nombre, stock: Number(cantidad) }; articulos.push(art); }
+
+  const mov = {
+    timestamp: new Date().toISOString(),
+    tipo:'Entrada', codigo, nombre, cantidad:Number(cantidad),
+    fechaMovimiento: fecha, numeroFactura: factura || '', comentario:'', areaEncargado:'', stockResultante: art.stock
+  };
+  movimientos.push(mov);
+  guardarDatos();
+  showToast(`Entrada registrada ✅ Código: ${codigo}`, 'success');
+  document.getElementById('formEntrada').reset();
+  document.getElementById('entradaFecha').value = new Date().toISOString().split('T')[0];
+}
+
+/* =========================
+   AUTOCOMPLETE salida + registrar (salida requiere admin)
+   ========================= */
+function autocompletarSalida(){
+  const code = document.getElementById('salidaCodigo').value.trim();
+  const art = articulos.find(a => a.codigo === code);
+  document.getElementById('salidaNombre').value = art ? art.nombre : '';
+  document.getElementById('stockActual').textContent = art ? art.stock : 0;
+}
+
+function registrarSalida(e){
+  e?.preventDefault();
+  if(role !== 'admin'){ showToast('No autorizado en modo Invitado', 'error'); return; }
+
+  const codigo = document.getElementById('salidaCodigo').value.trim();
+  const area = document.getElementById('salidaArea').value.trim();
+  const fecha = document.getElementById('salidaFecha').value;
+  const cantidad = parseInt(document.getElementById('salidaCantidad').value,10);
+  const comentario = document.getElementById('salidaComentario').value.trim();
+
+  if(!codigo || !area || !fecha || Number.isNaN(cantidad) || cantidad <= 0){
+    showToast('Complete todos los campos correctamente.', 'error'); return;
+  }
+  if(new Date(fecha) > new Date()){
+    showToast('La fecha no puede ser futura.', 'error'); return;
+  }
+  const art = articulos.find(a => a.codigo === codigo);
+  if(!art){ showToast('Código no existe', 'error'); return; }
+  if(cantidad > art.stock){ showToast('Cantidad excede stock', 'error'); return; }
+
+  art.stock = Number(art.stock) - Number(cantidad);
+  document.getElementById('stockActual').textContent = art.stock;
+
+  const mov = {
+    timestamp: new Date().toISOString(),
+    tipo:'Salida', codigo, nombre: art.nombre, cantidad:Number(cantidad),
+    fechaMovimiento: fecha, numeroFactura:'', comentario, areaEncargado: area, stockResultante: art.stock
+  };
+  movimientos.push(mov);
+  guardarDatos();
+  showToast('Salida registrada ✅', 'success');
+  document.getElementById('formSalida').reset();
+  document.getElementById('salidaFecha').value = new Date().toISOString().split('T')[0];
+}
+
+/* =========================
+   GUARDAR DATOS
+   ========================= */
+function guardarDatos(){
+  localStorage.setItem('articulos', JSON.stringify(articulos));
+  localStorage.setItem('movimientos', JSON.stringify(movimientos));
+  mostrarInventario();
+}
+
+/* =========================
+   EXPORT: ID generado al exportar
+   ========================= */
+function generarIdMovimiento(){
+  const now = new Date();
+  return now.getFullYear().toString() +
+    String(now.getMonth()+1).padStart(2,'0') +
+    String(now.getDate()).padStart(2,'0') +
+    String(now.getHours()).padStart(2,'0') +
+    String(now.getMinutes()).padStart(2,'0') +
+    String(now.getSeconds()).padStart(2,'0');
+}
+
+function exportExcelEntradas(){
+  if(role !== 'admin'){ showToast('No autorizado en modo Invitado', 'error'); return; }
+  const entradas = movimientos.filter(m => m.tipo === 'Entrada');
+  if(entradas.length === 0){ showToast('No hay entradas para exportar', 'error'); return; }
+  const ws_data = entradas.map(m => [ generarIdMovimiento(), m.timestamp, m.tipo, m.codigo, m.nombre, m.cantidad, m.fechaMovimiento, m.numeroFactura, m.stockResultante ]);
+  ws_data.unshift(['IDMovimiento','Timestamp','Tipo','Código','Nombre','Cantidad','FechaMovimiento','NumeroFactura','StockResultante']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Entradas');
+  XLSX.writeFile(wb, `entradas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportExcelSalidas(){
+  if(role !== 'admin'){ showToast('No autorizado en modo Invitado', 'error'); return; }
+  const salidas = movimientos.filter(m => m.tipo === 'Salida');
+  if(salidas.length === 0){ showToast('No hay salidas para exportar', 'error'); return; }
+  const ws_data = salidas.map(m => [ generarIdMovimiento(), m.timestamp, m.tipo, m.codigo, m.nombre, m.cantidad, m.areaEncargado, m.fechaMovimiento, m.comentario, m.stockResultante ]);
+  ws_data.unshift(['IDMovimiento','Timestamp','Tipo','Código','Nombre','Cantidad','ÁreaEncargado','FechaMovimiento','Comentario','StockResultante']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Salidas');
+  XLSX.writeFile(wb, `salidas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportExcelInventario(){
+  const list = articulos;
+  if(list.length === 0){ showToast('No hay artículos para exportar', 'error'); return; }
+  const ws_data = list.map(a => [a.codigo, a.nombre, a.stock]);
+  ws_data.unshift(['Código','Nombre','Stock']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+  XLSX.writeFile(wb, `inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+/* =========================
+   INICIALIZACIÓN (cuando cargue la página)
+   - mostramos login (overlay)
+   - ocultamos secciones hasta login
+   ========================= */
+document.addEventListener('DOMContentLoaded', () => {
+  // hide app sections until login approves
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  // show login overlay (already visible by default)
+  // attach dates defaults
+  document.getElementById('entradaFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('salidaFecha').value = new Date().toISOString().split('T')[0];
+  // pre-populate dummy data if empty (optional)
+  if(articulos.length === 0){
+    // example seed (optional) - comment out if not wanted
+    articulos = [
+      {codigo:'AP001', nombre:'Guantes', stock:15},
+      {codigo:'AP002', nombre:'Cascos', stock:8},
+      {codigo:'AP003', nombre:'Botas', stock:20}
+    ];
+    guardarDatos();
+  }
+});
+
+/* =========================
+   Funciones útiles expuestas para debug (opcional)
+   ========================= */
+window._app = { articulos, movimientos, generarCodigo, guardarDatos, mostrarInventario };
+
+</script>
+</body>
+</html>

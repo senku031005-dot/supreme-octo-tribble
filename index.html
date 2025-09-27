@@ -4,10 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Inventario - App con Login</title>
-<!-- XLSX -->
+
+<!-- XLSX para exportaciones -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
 <style>
-:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000}
+/* ===== TU CSS ORIGINAL ===== */
+:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
 /* NAV */
@@ -52,24 +55,44 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
 .btn-ghost{background:transparent;border:1px solid #ddd;padding:10px;border-radius:8px;cursor:pointer}
 .btn-primary{background:var(--primary);color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer}
 /* small */
-@media(max-width:480px){ nav button{max-width:100%} .section-head h2{font-size:1.05rem} th,td{font-size:.95rem} }
+@media(max-width:480px){
+  nav button{max-width:100%}
+  .section-head h2{font-size:1.05rem}
+  th,td{font-size:.95rem}
+}
 </style>
+
 </head>
 <body>
 
 <!-- LOGIN OVERLAY -->
-<div id="loginOverlay">
-  <div id="loginCard">
-    <h3>Inventario — Acceso</h3>
-    <input id="loginPassword" type="password" placeholder="Introduce la contraseña">
+<div id="loginOverlay" aria-hidden="false">
+  <div id="loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="login-header">
+      <div class="login-logo">IN</div>
+      <div>
+        <div id="loginTitle" class="login-title">Inventario — Acceso</div>
+        <div class="login-sub">Inicia sesión para acceder a Entradas y Salidas</div>
+      </div>
+    </div>
+
+    <div class="login-field">
+      <input id="loginPassword" type="password" placeholder="Introduce la contraseña" autocomplete="current-password" />
+      <div style="margin-top:6px"><span id="capsIndicator">MAYÚS</span></div>
+    </div>
+
     <div class="login-actions">
-      <button id="btnLogin" class="btn-primary">Entrar</button>
-      <button id="btnGuest" class="btn-ghost">Entrar sin usuario</button>
+      <button id="btnLogin" class="btn-primary" title="Entrar como administrador">Entrar</button>
+      <button id="btnGuest" class="btn-ghost" title="Entrar como invitado (solo ver inventario)">Entrar sin usuario</button>
+    </div>
+    <div class="small-note">
+      <strong>Nota:</strong> El modo Invitado solo permite visualizar el inventario.
     </div>
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
 
 <!-- NAV -->
 <nav>
@@ -85,13 +108,13 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
     <div class="section-head">
       <h2>Inventario Actual</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="filterInventario" type="text" placeholder="Filtrar por código o nombre" oninput="mostrarInventario()">
+        <input id="filterInventario" type="text" placeholder="Filtrar por código o nombre" style="padding:10px;border-radius:8px;border:1px solid #ddd" oninput="mostrarInventario()" />
         <button class="exportBtn" id="exportInventarioBtn" onclick="exportExcelInventario()">Exportar Inventario</button>
       </div>
     </div>
     <div class="card">
-      <div class="table-wrap">
-        <table id="tablaInventario">
+      <div class="table-wrap" style="max-height:420px;overflow:auto">
+        <table id="tablaInventario" aria-describedby="inventario">
           <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th></tr></thead>
           <tbody></tbody>
         </table>
@@ -107,16 +130,16 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
     </div>
     <div class="card">
       <form id="formEntrada" onsubmit="registrarEntrada(event)">
-        <label>Código (automático si nuevo)</label>
-        <input id="entradaCodigo" type="text">
-        <label>Nombre *</label>
-        <input id="entradaNombre" type="text" required>
-        <label>Fecha *</label>
+        <label for="entradaCodigo">Código (automático si nuevo)</label>
+        <input id="entradaCodigo" type="text" placeholder="Código (dejar vacío para nuevo artículo)">
+        <label for="entradaNombre">Nombre *</label>
+        <input id="entradaNombre" type="text" placeholder="Nombre" required>
+        <label for="entradaFecha">Fecha *</label>
         <input id="entradaFecha" type="date" required>
-        <label>Cantidad *</label>
-        <input id="entradaCantidad" type="number" min="1" required>
-        <label>Número de factura</label>
-        <input id="entradaFactura" type="text" maxlength="50">
+        <label for="entradaCantidad">Cantidad *</label>
+        <input id="entradaCantidad" type="number" placeholder="Cantidad" min="1" required>
+        <label for="entradaFactura">Número de factura</label>
+        <input id="entradaFactura" type="text" maxlength="50" placeholder="Número de factura">
         <button type="submit" class="submitBtn" id="btnRegistrarEntrada">Registrar Entrada</button>
       </form>
     </div>
@@ -130,62 +153,59 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
     </div>
     <div class="card">
       <form id="formSalida" onsubmit="registrarSalida(event)">
-        <label>Código *</label>
-        <input id="salidaCodigo" type="text" required oninput="autocompletarSalida()">
-        <label>Nombre</label>
-        <input id="salidaNombre" type="text" readonly>
+        <label for="salidaCodigo">Código *</label>
+        <input id="salidaCodigo" type="text" placeholder="Código" required oninput="autocompletarSalida()" />
+        <label for="salidaNombre">Nombre</label>
+        <input id="salidaNombre" type="text" readonly placeholder="Nombre" />
         <div id="stockActualCard">Stock actual: <span id="stockActual">0</span></div>
-        <label>Área / Encargado *</label>
-        <input id="salidaArea" type="text" required>
-        <label>Fecha *</label>
+        <label for="salidaArea">Área / Encargado *</label>
+        <input id="salidaArea" type="text" placeholder="Área / Encargado" required>
+        <label for="salidaFecha">Fecha *</label>
         <input id="salidaFecha" type="date" required>
-        <label>Cantidad *</label>
-        <input id="salidaCantidad" type="number" min="1" required>
-        <label>Comentario</label>
-        <input id="salidaComentario" type="text" maxlength="200">
+        <label for="salidaCantidad">Cantidad *</label>
+        <input id="salidaCantidad" type="number" placeholder="Cantidad" min="1" required>
+        <label for="salidaComentario">Comentario</label>
+        <input id="salidaComentario" type="text" maxlength="200" placeholder="Comentario">
         <button type="submit" class="submitBtn" id="btnRegistrarSalida">Registrar Salida</button>
       </form>
     </div>
   </section>
 </div>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- ====== SCRIPT FIREBASE + LOGICA ====== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-<script>
-/* ========================= CONFIG FIREBASE ========================= */
+/* ========== CONFIG FIREBASE ========== */
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyBu3LlgZciPQuxY7ak9fUjPdCYkTqzExqQ",
+  authDomain: "inventarioweb-cbde9.firebaseapp.com",
+  projectId: "inventarioweb-cbde9",
+  storageBucket: "inventarioweb-cbde9.firebasestorage.app",
+  messagingSenderId: "491831879829",
+  appId: "1:491831879829:web:0b598a41a73b88d973139c",
+  measurementId: "G-X4G4N2KLLK"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
-/* ========================= CONFIG APP ========================= */
-const ADMIN_PASSWORD = 'ofi123';
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+/* ========================= VARIABLES ========================= */
 let role = 'locked';
-const loginOverlay = document.getElementById('loginOverlay');
-const btnLogin = document.getElementById('btnLogin');
-const btnGuest = document.getElementById('btnGuest');
-const loginPassword = document.getElementById('loginPassword');
-const toast = document.getElementById('toast');
-
-/* ========================= TOAST ========================= */
-function showToast(msg, type='success'){
-  toast.textContent = msg;
-  toast.className = 'show ' + (type==='error'?'error':'success');
-  setTimeout(()=>{toast.className='';},3200);
-}
 
 /* ========================= LOGIN ========================= */
-btnLogin.addEventListener('click', async () => {
-  const pwd = loginPassword.value || '';
-  if(pwd === ADMIN_PASSWORD){
+const loginOverlay = document.getElementById('loginOverlay');
+const loginPassword = document.getElementById('loginPassword');
+const btnLogin = document.getElementById('btnLogin');
+const btnGuest = document.getElementById('btnGuest');
+
+const ADMIN_PASSWORD = 'ofi123';
+
+btnLogin.addEventListener('click', async ()=>{
+  if(loginPassword.value===ADMIN_PASSWORD){
     role='admin';
     loginOverlay.style.display='none';
     await initAfterLogin();
@@ -194,14 +214,30 @@ btnLogin.addEventListener('click', async () => {
     showToast('Contraseña incorrecta','error');
   }
 });
-btnGuest.addEventListener('click', async () => {
+
+btnGuest.addEventListener('click', async ()=>{
   role='guest';
   loginOverlay.style.display='none';
   await initAfterLogin();
   showToast('Acceso como Invitado — Solo inventario','success');
 });
 
-/* ========================= INICIALIZAR APP ========================= */
+/* ========================= FUNCIONES AUX ========================= */
+const toast=document.getElementById('toast');
+function showToast(msg,type='success'){ toast.textContent=msg; toast.className='show '+(type==='error'?'error':'success'); setTimeout(()=>{toast.className='';},3200); }
+
+/* ========================= FUNCIONES FIRESTORE ========================= */
+async function fetchArticulos(){
+  const querySnapshot = await getDocs(collection(db,'articulos'));
+  return querySnapshot.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+async function fetchMovimientos(){
+  const querySnapshot = await getDocs(collection(db,'movimientos'));
+  return querySnapshot.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+/* ========================= INICIALIZAR APP DESPUES DE LOGIN ========================= */
 async function initAfterLogin(){
   showTab('inventario');
   const navEntrada = document.getElementById('navEntrada');
@@ -224,193 +260,155 @@ async function initAfterLogin(){
     navEntrada.style.display='none'; navSalida.style.display='none';
   }
 
-  // Cargar inventario desde Firebase
-  await mostrarInventario();
+  // Cargar datos desde Firestore
+  window.articulos = await fetchArticulos();
+  window.movimientos = await fetchMovimientos();
+  mostrarInventario();
 }
 
 /* ========================= NAV / TABS ========================= */
 function showTab(tab){
-  if(role==='guest' && (tab==='entrada'||tab==='salida')){
-    showToast('Acceso denegado. Modo Invitado: solo Inventario','error');
-    tab='inventario';
-  }
+  if(role==='guest' && (tab==='entrada'||tab==='salida')){ showToast('Acceso denegado. Modo Invitado: solo Inventario','error'); tab='inventario'; }
   document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
-  const el=document.getElementById(tab);
-  if(el) el.classList.add('active');
+  const el=document.getElementById(tab); if(el) el.classList.add('active');
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
   const navButtons=document.querySelectorAll('nav button');
-  navButtons.forEach(nb=>{if(nb.getAttribute('onclick')?.includes(tab)) nb.classList.add('active');});
+  navButtons.forEach(nb=>{ if(nb.getAttribute('onclick') && nb.getAttribute('onclick').includes(tab)){ nb.classList.add('active'); } });
 }
 
 /* ========================= INVENTARIO ========================= */
 async function mostrarInventario(){
-  const tbody = document.querySelector('#tablaInventario tbody');
-  const filterText = (document.getElementById('filterInventario')?.value || '').toLowerCase();
+  const tbody=document.querySelector('#tablaInventario tbody');
+  const filterText=(document.getElementById('filterInventario')?.value||'').toLowerCase();
   tbody.innerHTML='';
-
-  const snapshot = await db.collection('articulos').get();
-  snapshot.forEach(doc=>{
-    const a = doc.data();
-    if(filterText && !(a.codigo.toLowerCase().includes(filterText) || a.nombre.toLowerCase().includes(filterText))) return;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
+  const list = window.articulos
+    .filter(a=>!filterText||a.codigo.toLowerCase().includes(filterText)||a.nombre.toLowerCase().includes(filterText))
+    .sort((x,y)=>x.codigo.localeCompare(y.codigo));
+  list.forEach(a=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
     tbody.appendChild(tr);
   });
 }
 
 /* ========================= GENERAR CODIGO ========================= */
-async function generarCodigo(){
-  const snapshot = await db.collection('articulos').orderBy('codigo','desc').limit(1).get();
-  let max = 0;
-  snapshot.forEach(doc=>{
-    const c = doc.data().codigo;
-    if(c.startsWith('AP')){
-      const n=parseInt(c.slice(2),10);
-      if(!isNaN(n) && n>max) max=n;
-    }
-  });
-  max++;
-  return 'AP'+String(max).padStart(3,'0');
+function generarCodigo(){
+  let max=0; window.articulos.forEach(a=>{ if(a.codigo.startsWith('AP')){ const n=parseInt(a.codigo.slice(2),10); if(!isNaN(n)&&n>max) max=n; }});
+  max++; return 'AP'+String(max).padStart(3,'0');
 }
 
 /* ========================= REGISTRAR ENTRADA ========================= */
 async function registrarEntrada(e){
   e?.preventDefault();
   if(role!=='admin'){ showToast('No autorizado en modo Invitado','error'); return; }
-  let codigo = document.getElementById('entradaCodigo').value.trim();
-  const nombre = document.getElementById('entradaNombre').value.trim();
-  const fecha = document.getElementById('entradaFecha').value;
-  const cantidad = parseInt(document.getElementById('entradaCantidad').value,10);
-  const factura = document.getElementById('entradaFactura').value.trim();
+  const codigoInput=document.getElementById('entradaCodigo');
+  const nombreInput=document.getElementById('entradaNombre');
+  const fechaInput=document.getElementById('entradaFecha');
+  const cantidadInput=document.getElementById('entradaCantidad');
+  const facturaInput=document.getElementById('entradaFactura');
 
-  if(!nombre || !fecha || isNaN(cantidad) || cantidad<=0){ showToast('Complete todos los campos correctamente.','error'); return; }
-  if(new Date(fecha) > new Date()){ showToast('La fecha no puede ser futura.','error'); return; }
+  let codigo=codigoInput.value.trim();
+  const nombre=nombreInput.value.trim();
+  const fecha=fechaInput.value;
+  const cantidad=parseInt(cantidadInput.value,10);
+  const factura=facturaInput.value.trim();
 
-  if(!codigo) codigo = await generarCodigo();
-  const artRef = db.collection('articulos').doc(codigo);
-  const doc = await artRef.get();
+  if(!nombre||!fecha||Number.isNaN(cantidad)||cantidad<=0){ showToast('Complete todos los campos correctamente.','error'); return; }
 
-  let stockResultante = cantidad;
-  if(doc.exists){
-    const data = doc.data();
-    if(data.nombre!==nombre){ showToast('Código ya existe para otro artículo','error'); return; }
-    stockResultante = data.stock + cantidad;
-    await artRef.update({stock: stockResultante});
+  let articulo=window.articulos.find(a=>a.codigo===codigo || a.nombre.toLowerCase()===nombre.toLowerCase());
+  if(!articulo){
+    codigo = codigo || generarCodigo();
+    articulo={codigo,nombre,stock:cantidad};
+    const docRef = await addDoc(collection(db,'articulos'),articulo);
+    articulo.id = docRef.id;
+    window.articulos.push(articulo);
   } else {
-    await artRef.set({codigo, nombre, stock:stockResultante});
+    articulo.stock += cantidad;
+    const docRef = doc(db,'articulos',articulo.id);
+    await updateDoc(docRef,{stock:articulo.stock});
   }
 
-  await db.collection('movimientos').add({
-    timestamp: new Date().toISOString(),
-    tipo:'Entrada',
-    codigo, nombre, cantidad,
-    fechaMovimiento: fecha,
-    numeroFactura: factura||'',
-    stockResultante
-  });
+  const movimiento={
+    tipo:'entrada', codigo:articulo.codigo, nombre:articulo.nombre, cantidad, fecha, factura
+  };
+  await addDoc(collection(db,'movimientos'),movimiento);
+  window.movimientos.push(movimiento);
 
-  showToast(`Entrada registrada ✅ Código: ${codigo}`,'success');
-  document.getElementById('formEntrada').reset();
-  document.getElementById('entradaFecha').value=new Date().toISOString().split('T')[0];
-  await mostrarInventario();
+  codigoInput.value=''; nombreInput.value=''; fechaInput.value=''; cantidadInput.value=''; facturaInput.value='';
+  mostrarInventario();
+  showToast('Entrada registrada correctamente','success');
 }
 
-/* ========================= SALIDA ========================= */
-async function autocompletarSalida(){
-  const code = document.getElementById('salidaCodigo').value.trim();
-  if(!code) return;
-  const doc = await db.collection('articulos').doc(code).get();
-  if(doc.exists){
-    const a=doc.data();
-    document.getElementById('salidaNombre').value=a.nombre;
-    document.getElementById('stockActual').textContent=a.stock;
-  } else {
-    document.getElementById('salidaNombre').value='';
-    document.getElementById('stockActual').textContent=0;
-  }
-}
-
+/* ========================= REGISTRAR SALIDA ========================= */
 async function registrarSalida(e){
   e?.preventDefault();
   if(role!=='admin'){ showToast('No autorizado en modo Invitado','error'); return; }
-  const codigo = document.getElementById('salidaCodigo').value.trim();
-  const area = document.getElementById('salidaArea').value.trim();
-  const fecha = document.getElementById('salidaFecha').value;
-  const cantidad = parseInt(document.getElementById('salidaCantidad').value,10);
-  const comentario = document.getElementById('salidaComentario').value.trim();
+  const codigoInput=document.getElementById('salidaCodigo');
+  const nombreInput=document.getElementById('salidaNombre');
+  const cantidadInput=document.getElementById('salidaCantidad');
+  const areaInput=document.getElementById('salidaArea');
+  const fechaInput=document.getElementById('salidaFecha');
+  const comentarioInput=document.getElementById('salidaComentario');
+  const stockCard=document.getElementById('stockActual');
 
-  if(!codigo || !area || !fecha || isNaN(cantidad) || cantidad<=0){ showToast('Complete todos los campos correctamente.','error'); return; }
-  if(new Date(fecha) > new Date()){ showToast('La fecha no puede ser futura.','error'); return; }
+  const codigo=codigoInput.value.trim();
+  const articulo=window.articulos.find(a=>a.codigo===codigo);
+  if(!articulo){ showToast('Código no encontrado','error'); return; }
+  const cantidad=parseInt(cantidadInput.value,10);
+  if(Number.isNaN(cantidad)||cantidad<=0){ showToast('Cantidad inválida','error'); return; }
+  if(cantidad>articulo.stock){ showToast('Stock insuficiente','error'); return; }
 
-  const artRef = db.collection('articulos').doc(codigo);
-  const doc = await artRef.get();
-  if(!doc.exists){ showToast('Código no existe','error'); return; }
+  articulo.stock -= cantidad;
+  const docRef = doc(db,'articulos',articulo.id);
+  await updateDoc(docRef,{stock:articulo.stock});
 
-  const art = doc.data();
-  if(cantidad > art.stock){ showToast('Cantidad excede stock','error'); return; }
+  const movimiento={
+    tipo:'salida', codigo:articulo.codigo, nombre:articulo.nombre,
+    cantidad, fecha:fechaInput.value, area:areaInput.value.trim(), comentario:comentarioInput.value.trim()
+  };
+  await addDoc(collection(db,'movimientos'),movimiento);
+  window.movimientos.push(movimiento);
 
-  const stockResultante = art.stock - cantidad;
-  await artRef.update({stock: stockResultante});
-  document.getElementById('stockActual').textContent = stockResultante;
-
-  await db.collection('movimientos').add({
-    timestamp: new Date().toISOString(),
-    tipo:'Salida',
-    codigo,
-    nombre: art.nombre,
-    cantidad,
-    areaEncargado: area,
-    fechaMovimiento: fecha,
-    comentario,
-    stockResultante
-  });
-
-  showToast('Salida registrada ✅','success');
-  document.getElementById('formSalida').reset();
-  document.getElementById('salidaFecha').value=new Date().toISOString().split('T')[0];
-  await mostrarInventario();
+  codigoInput.value=''; nombreInput.value=''; cantidadInput.value=''; areaInput.value=''; fechaInput.value=''; comentarioInput.value='';
+  stockCard.textContent='0';
+  mostrarInventario();
+  showToast('Salida registrada correctamente','success');
 }
 
-/* ========================= EXPORTS ========================= */
-async function exportExcelInventario(){
-  const snapshot = await db.collection('articulos').get();
-  const list = snapshot.docs.map(doc=>doc.data());
-  if(list.length===0){ showToast('No hay artículos para exportar','error'); return; }
-  const ws_data = list.map(a=>[a.codigo,a.nombre,a.stock]);
-  ws_data.unshift(['Código','Nombre','Stock']);
-  const ws = XLSX.utils.aoa_to_sheet(ws_data);
-  const wb = XLSX.utils.book_new();
+/* ========================= AUTOCOMPLETAR SALIDA ========================= */
+function autocompletarSalida(){
+  const codigo=document.getElementById('salidaCodigo').value.trim();
+  const nombreInput=document.getElementById('salidaNombre');
+  const stockCard=document.getElementById('stockActual');
+  const articulo=window.articulos.find(a=>a.codigo===codigo);
+  if(articulo){ nombreInput.value=articulo.nombre; stockCard.textContent=articulo.stock; } else { nombreInput.value=''; stockCard.textContent='0'; }
+}
+
+/* ========================= EXPORTAR A EXCEL ========================= */
+function exportExcelInventario(){
+  const data=window.articulos.map(a=>({Codigo:a.codigo,Nombre:a.nombre,Stock:a.stock}));
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Inventario');
-  XLSX.writeFile(wb,`inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-async function exportExcelEntradas(){
-  const snapshot = await db.collection('movimientos').where('tipo','==','Entrada').get();
-  const list = snapshot.docs.map(doc=>doc.data());
-  if(list.length===0){ showToast('No hay entradas para exportar','error'); return; }
-  const ws_data = list.map(m=>[m.timestamp,m.tipo,m.codigo,m.nombre,m.cantidad,m.fechaMovimiento,m.numeroFactura,m.stockResultante]);
-  ws_data.unshift(['Timestamp','Tipo','Código','Nombre','Cantidad','FechaMovimiento','NumeroFactura','StockResultante']);
-  const ws = XLSX.utils.aoa_to_sheet(ws_data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Entradas');
-  XLSX.writeFile(wb,`entradas_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-async function exportExcelSalidas(){
-  const snapshot = await db.collection('movimientos').where('tipo','==','Salida').get();
-  const list = snapshot.docs.map(doc=>doc.data());
-  if(list.length===0){ showToast('No hay salidas para exportar','error'); return; }
-  const ws_data = list.map(m=>[m.timestamp,m.tipo,m.codigo,m.nombre,m.cantidad,m.areaEncargado,m.fechaMovimiento,m.comentario,m.stockResultante]);
-  ws_data.unshift(['Timestamp','Tipo','Código','Nombre','Cantidad','ÁreaEncargado','FechaMovimiento','Comentario','StockResultante']);
-  const ws = XLSX.utils.aoa_to_sheet(ws_data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Salidas');
-  XLSX.writeFile(wb,`salidas_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb,'Inventario.xlsx');
 }
 
-/* ========================= INIT FECHAS ========================= */
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('entradaFecha').value=new Date().toISOString().split('T')[0];
-  document.getElementById('salidaFecha').value=new Date().toISOString().split('T')[0];
-});
+function exportExcelEntradas(){
+  const data=window.movimientos.filter(m=>m.tipo==='entrada');
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Entradas');
+  XLSX.writeFile(wb,'Entradas.xlsx');
+}
+
+function exportExcelSalidas(){
+  const data=window.movimientos.filter(m=>m.tipo==='salida');
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Salidas');
+  XLSX.writeFile(wb,'Salidas.xlsx');
+}
+
 </script>
 
 </body>

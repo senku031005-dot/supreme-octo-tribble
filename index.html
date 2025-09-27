@@ -7,7 +7,7 @@
 <!-- XLSX -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
-:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000;}
+:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
 /* NAV */
@@ -51,25 +51,25 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
 .login-actions{display:flex;gap:10px;margin-top:12px}
 .btn-ghost{background:transparent;border:1px solid #ddd;padding:10px;border-radius:8px;cursor:pointer}
 .btn-primary{background:var(--primary);color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer}
+/* small */
 @media(max-width:480px){ nav button{max-width:100%} .section-head h2{font-size:1.05rem} th,td{font-size:.95rem} }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="loginOverlay" aria-hidden="false">
-  <div id="loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <h3 id="loginTitle">Inventario — Acceso</h3>
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div id="loginCard">
+    <h3>Inventario — Acceso</h3>
     <input id="loginPassword" type="password" placeholder="Introduce la contraseña">
     <div class="login-actions">
       <button id="btnLogin" class="btn-primary">Entrar</button>
-      <button id="btnGuest" class="btn-ghost">Entrar como invitado</button>
+      <button id="btnGuest" class="btn-ghost">Entrar sin usuario</button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast" role="status" aria-live="polite"></div>
+<div id="toast"></div>
 
 <!-- NAV -->
 <nav>
@@ -78,16 +78,19 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
   <button id="navSalida" onclick="showTab('salida')">Salida</button>
 </nav>
 
+<!-- APP CONTAINER -->
 <div class="container">
-
   <!-- INVENTARIO -->
   <section id="inventario">
     <div class="section-head">
       <h2>Inventario Actual</h2>
-      <button class="exportBtn" onclick="exportarExcel('inventario')">Exportar Inventario</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="filterInventario" type="text" placeholder="Filtrar por código o nombre" oninput="mostrarInventario()">
+        <button class="exportBtn" id="exportInventarioBtn" onclick="exportExcelInventario()">Exportar Inventario</button>
+      </div>
     </div>
     <div class="card">
-      <div class="table-wrap" style="max-height:420px;overflow:auto">
+      <div class="table-wrap">
         <table id="tablaInventario">
           <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th></tr></thead>
           <tbody></tbody>
@@ -100,11 +103,11 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
   <section id="entrada">
     <div class="section-head">
       <h2>Entrada de Artículo</h2>
-      <button class="exportBtn" onclick="exportarExcel('entrada')">Exportar Entradas</button>
+      <button class="exportBtn" id="exportEntradasBtn" onclick="exportExcelEntradas()">Exportar Entradas</button>
     </div>
     <div class="card">
-      <form id="formEntrada">
-        <label>Código (si es nuevo, se genera automático)</label>
+      <form id="formEntrada" onsubmit="registrarEntrada(event)">
+        <label>Código (automático si nuevo)</label>
         <input id="entradaCodigo" type="text">
         <label>Nombre *</label>
         <input id="entradaNombre" type="text" required>
@@ -112,9 +115,9 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
         <input id="entradaFecha" type="date" required>
         <label>Cantidad *</label>
         <input id="entradaCantidad" type="number" min="1" required>
-        <label>Factura</label>
-        <input id="entradaFactura" type="text">
-        <button type="submit" class="submitBtn">Registrar Entrada</button>
+        <label>Número de factura</label>
+        <input id="entradaFactura" type="text" maxlength="50">
+        <button type="submit" class="submitBtn" id="btnRegistrarEntrada">Registrar Entrada</button>
       </form>
     </div>
   </section>
@@ -123,151 +126,291 @@ tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
   <section id="salida">
     <div class="section-head">
       <h2>Salida de Artículo</h2>
-      <button class="exportBtn" onclick="exportarExcel('salida')">Exportar Salidas</button>
+      <button class="exportBtn" id="exportSalidasBtn" onclick="exportExcelSalidas()">Exportar Salidas</button>
     </div>
     <div class="card">
-      <form id="formSalida">
+      <form id="formSalida" onsubmit="registrarSalida(event)">
         <label>Código *</label>
-        <input id="salidaCodigo" type="text" required>
+        <input id="salidaCodigo" type="text" required oninput="autocompletarSalida()">
         <label>Nombre</label>
         <input id="salidaNombre" type="text" readonly>
         <div id="stockActualCard">Stock actual: <span id="stockActual">0</span></div>
-        <label>Área/Encargado *</label>
+        <label>Área / Encargado *</label>
         <input id="salidaArea" type="text" required>
         <label>Fecha *</label>
         <input id="salidaFecha" type="date" required>
         <label>Cantidad *</label>
         <input id="salidaCantidad" type="number" min="1" required>
         <label>Comentario</label>
-        <input id="salidaComentario" type="text">
-        <button type="submit" class="submitBtn">Registrar Salida</button>
+        <input id="salidaComentario" type="text" maxlength="200">
+        <button type="submit" class="submitBtn" id="btnRegistrarSalida">Registrar Salida</button>
       </form>
     </div>
   </section>
-
 </div>
 
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <script>
-let role='locked';
-const toast=document.getElementById('toast');
-function showToast(msg,type='success'){toast.textContent=msg;toast.className='show '+(type==='error'?'error':'success');setTimeout(()=>{toast.className='';},3000);}
-const ADMIN_PASSWORD='ofi123';
+/* ========================= CONFIG FIREBASE ========================= */
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-// LOGIN
-document.getElementById('btnLogin').onclick=()=>{
-  const pwd=document.getElementById('loginPassword').value;
-  if(pwd===ADMIN_PASSWORD){ role='admin'; document.getElementById('loginOverlay').style.display='none'; initApp(); showToast('Bienvenido Admin');}
-  else showToast('Contraseña incorrecta','error');
+/* ========================= CONFIG APP ========================= */
+const ADMIN_PASSWORD = 'ofi123';
+let role = 'locked';
+const loginOverlay = document.getElementById('loginOverlay');
+const btnLogin = document.getElementById('btnLogin');
+const btnGuest = document.getElementById('btnGuest');
+const loginPassword = document.getElementById('loginPassword');
+const toast = document.getElementById('toast');
+
+/* ========================= TOAST ========================= */
+function showToast(msg, type='success'){
+  toast.textContent = msg;
+  toast.className = 'show ' + (type==='error'?'error':'success');
+  setTimeout(()=>{toast.className='';},3200);
 }
-document.getElementById('btnGuest').onclick=()=>{
-  role='guest'; document.getElementById('loginOverlay').style.display='none'; initApp(); showToast('Modo Invitado');
-}
 
-// NAV
-function showTab(tab){
-  if(role==='guest' && (tab==='entrada'||tab==='salida')){ showToast('Acceso denegado','error'); tab='inventario'; }
-  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
-  document.getElementById(tab).classList.add('active');
-}
+/* ========================= LOGIN ========================= */
+btnLogin.addEventListener('click', async () => {
+  const pwd = loginPassword.value || '';
+  if(pwd === ADMIN_PASSWORD){
+    role='admin';
+    loginOverlay.style.display='none';
+    await initAfterLogin();
+    showToast('Acceso correcto. Bienvenido (Admin)','success');
+  } else {
+    showToast('Contraseña incorrecta','error');
+  }
+});
+btnGuest.addEventListener('click', async () => {
+  role='guest';
+  loginOverlay.style.display='none';
+  await initAfterLogin();
+  showToast('Acceso como Invitado — Solo inventario','success');
+});
 
-// LOCALSTORAGE DATA
-function getData(key){ return JSON.parse(localStorage.getItem(key)||'[]'); }
-function setData(key,data){ localStorage.setItem(key,JSON.stringify(data)); }
-
-// INIT APP
-function initApp(){
+/* ========================= INICIALIZAR APP ========================= */
+async function initAfterLogin(){
   showTab('inventario');
-  mostrarInventario();
-  document.getElementById('formEntrada').onsubmit=registrarEntrada;
-  document.getElementById('formSalida').onsubmit=registrarSalida;
-  document.getElementById('salidaCodigo').oninput=autocompletarSalida;
+  const navEntrada = document.getElementById('navEntrada');
+  const navSalida = document.getElementById('navSalida');
+  const btnRegistrarEntrada = document.getElementById('btnRegistrarEntrada');
+  const btnRegistrarSalida = document.getElementById('btnRegistrarSalida');
+  const exportEntradasBtn = document.getElementById('exportEntradasBtn');
+  const exportSalidasBtn = document.getElementById('exportSalidasBtn');
+  const exportInventarioBtn = document.getElementById('exportInventarioBtn');
+
+  if(role==='admin'){
+    navEntrada.classList.remove('disabled'); navSalida.classList.remove('disabled');
+    btnRegistrarEntrada.disabled=false; btnRegistrarSalida.disabled=false;
+    exportEntradasBtn.disabled=false; exportSalidasBtn.disabled=false; exportInventarioBtn.disabled=false;
+    navEntrada.style.display=''; navSalida.style.display='';
+  } else {
+    navEntrada.classList.add('disabled'); navSalida.classList.add('disabled');
+    btnRegistrarEntrada.disabled=true; btnRegistrarSalida.disabled=true;
+    exportEntradasBtn.disabled=true; exportSalidasBtn.disabled=true; exportInventarioBtn.disabled=false;
+    navEntrada.style.display='none'; navSalida.style.display='none';
+  }
+
+  // Cargar inventario desde Firebase
+  await mostrarInventario();
 }
 
-// INVENTARIO
-function mostrarInventario(){
-  const tbody=document.querySelector('#tablaInventario tbody');
+/* ========================= NAV / TABS ========================= */
+function showTab(tab){
+  if(role==='guest' && (tab==='entrada'||tab==='salida')){
+    showToast('Acceso denegado. Modo Invitado: solo Inventario','error');
+    tab='inventario';
+  }
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(tab);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  const navButtons=document.querySelectorAll('nav button');
+  navButtons.forEach(nb=>{if(nb.getAttribute('onclick')?.includes(tab)) nb.classList.add('active');});
+}
+
+/* ========================= INVENTARIO ========================= */
+async function mostrarInventario(){
+  const tbody = document.querySelector('#tablaInventario tbody');
+  const filterText = (document.getElementById('filterInventario')?.value || '').toLowerCase();
   tbody.innerHTML='';
-  const inventario=getData('articulos');
-  inventario.forEach(a=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
+
+  const snapshot = await db.collection('articulos').get();
+  snapshot.forEach(doc=>{
+    const a = doc.data();
+    if(filterText && !(a.codigo.toLowerCase().includes(filterText) || a.nombre.toLowerCase().includes(filterText))) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-// GENERAR CODIGO
-function generarCodigo(){
-  const inventario=getData('articulos');
-  let max=0; inventario.forEach(a=>{ const n=parseInt(a.codigo.slice(2)); if(!isNaN(n) && n>max) max=n; });
-  return 'AP'+String(max+1).padStart(3,'0');
+/* ========================= GENERAR CODIGO ========================= */
+async function generarCodigo(){
+  const snapshot = await db.collection('articulos').orderBy('codigo','desc').limit(1).get();
+  let max = 0;
+  snapshot.forEach(doc=>{
+    const c = doc.data().codigo;
+    if(c.startsWith('AP')){
+      const n=parseInt(c.slice(2),10);
+      if(!isNaN(n) && n>max) max=n;
+    }
+  });
+  max++;
+  return 'AP'+String(max).padStart(3,'0');
 }
 
-// REGISTRAR ENTRADA
-function registrarEntrada(e){
-  e.preventDefault();
-  if(role!=='admin'){ showToast('No autorizado','error'); return; }
-  let codigo=document.getElementById('entradaCodigo').value.trim();
-  const nombre=document.getElementById('entradaNombre').value.trim();
-  const fecha=document.getElementById('entradaFecha').value;
-  const cantidad=parseInt(document.getElementById('entradaCantidad').value);
-  const factura=document.getElementById('entradaFactura').value.trim();
-  if(!nombre||!fecha||isNaN(cantidad)||cantidad<=0){ showToast('Complete todos los campos','error'); return; }
-  if(!codigo) codigo=generarCodigo();
-  const inventario=getData('articulos');
-  let articulo=inventario.find(a=>a.codigo===codigo);
-  if(articulo) articulo.stock+=cantidad;
-  else inventario.push({codigo,nombre,stock:cantidad});
-  setData('articulos',inventario);
-  // Guardar movimiento
-  const movimientos=getData('movimientos'); movimientos.push({tipo:'Entrada',codigo,nombre,cantidad,fecha,numeroFactura:factura,comentario:'',areaEncargado:'',stockResultante:articulo?articulo.stock:cantidad});
-  setData('movimientos',movimientos);
-  showToast('Entrada registrada');
+/* ========================= REGISTRAR ENTRADA ========================= */
+async function registrarEntrada(e){
+  e?.preventDefault();
+  if(role!=='admin'){ showToast('No autorizado en modo Invitado','error'); return; }
+  let codigo = document.getElementById('entradaCodigo').value.trim();
+  const nombre = document.getElementById('entradaNombre').value.trim();
+  const fecha = document.getElementById('entradaFecha').value;
+  const cantidad = parseInt(document.getElementById('entradaCantidad').value,10);
+  const factura = document.getElementById('entradaFactura').value.trim();
+
+  if(!nombre || !fecha || isNaN(cantidad) || cantidad<=0){ showToast('Complete todos los campos correctamente.','error'); return; }
+  if(new Date(fecha) > new Date()){ showToast('La fecha no puede ser futura.','error'); return; }
+
+  if(!codigo) codigo = await generarCodigo();
+  const artRef = db.collection('articulos').doc(codigo);
+  const doc = await artRef.get();
+
+  let stockResultante = cantidad;
+  if(doc.exists){
+    const data = doc.data();
+    if(data.nombre!==nombre){ showToast('Código ya existe para otro artículo','error'); return; }
+    stockResultante = data.stock + cantidad;
+    await artRef.update({stock: stockResultante});
+  } else {
+    await artRef.set({codigo, nombre, stock:stockResultante});
+  }
+
+  await db.collection('movimientos').add({
+    timestamp: new Date().toISOString(),
+    tipo:'Entrada',
+    codigo, nombre, cantidad,
+    fechaMovimiento: fecha,
+    numeroFactura: factura||'',
+    stockResultante
+  });
+
+  showToast(`Entrada registrada ✅ Código: ${codigo}`,'success');
   document.getElementById('formEntrada').reset();
-  mostrarInventario();
+  document.getElementById('entradaFecha').value=new Date().toISOString().split('T')[0];
+  await mostrarInventario();
 }
 
-// AUTOCOMPLETAR SALIDA
-function autocompletarSalida(){
-  const codigo=document.getElementById('salidaCodigo').value.trim();
-  const inventario=getData('articulos');
-  const art=inventario.find(a=>a.codigo===codigo);
-  document.getElementById('salidaNombre').value=art?art.nombre:'';
-  document.getElementById('stockActual').textContent=art?art.stock:0;
+/* ========================= SALIDA ========================= */
+async function autocompletarSalida(){
+  const code = document.getElementById('salidaCodigo').value.trim();
+  if(!code) return;
+  const doc = await db.collection('articulos').doc(code).get();
+  if(doc.exists){
+    const a=doc.data();
+    document.getElementById('salidaNombre').value=a.nombre;
+    document.getElementById('stockActual').textContent=a.stock;
+  } else {
+    document.getElementById('salidaNombre').value='';
+    document.getElementById('stockActual').textContent=0;
+  }
 }
 
-// REGISTRAR SALIDA
-function registrarSalida(e){
-  e.preventDefault();
-  if(role!=='admin'){ showToast('No autorizado','error'); return; }
-  const codigo=document.getElementById('salidaCodigo').value.trim();
-  const area=document.getElementById('salidaArea').value.trim();
-  const fecha=document.getElementById('salidaFecha').value;
-  const cantidad=parseInt(document.getElementById('salidaCantidad').value);
-  const comentario=document.getElementById('salidaComentario').value.trim();
-  if(!codigo||!area||!fecha||isNaN(cantidad)||cantidad<=0){ showToast('Complete todos los campos','error'); return; }
-  const inventario=getData('articulos'); const art=inventario.find(a=>a.codigo===codigo);
-  if(!art){ showToast('Artículo no existe','error'); return; }
-  if(cantidad>art.stock){ showToast('Stock insuficiente','error'); return; }
-  art.stock-=cantidad;
-  setData('articulos',inventario);
-  const movimientos=getData('movimientos'); movimientos.push({tipo:'Salida',codigo,areaEncargado:area,fechaMovimiento:fecha,cantidad,comentario,stockResultante:art.stock,nombre:art.nombre});
-  setData('movimientos',movimientos);
-  showToast('Salida registrada');
+async function registrarSalida(e){
+  e?.preventDefault();
+  if(role!=='admin'){ showToast('No autorizado en modo Invitado','error'); return; }
+  const codigo = document.getElementById('salidaCodigo').value.trim();
+  const area = document.getElementById('salidaArea').value.trim();
+  const fecha = document.getElementById('salidaFecha').value;
+  const cantidad = parseInt(document.getElementById('salidaCantidad').value,10);
+  const comentario = document.getElementById('salidaComentario').value.trim();
+
+  if(!codigo || !area || !fecha || isNaN(cantidad) || cantidad<=0){ showToast('Complete todos los campos correctamente.','error'); return; }
+  if(new Date(fecha) > new Date()){ showToast('La fecha no puede ser futura.','error'); return; }
+
+  const artRef = db.collection('articulos').doc(codigo);
+  const doc = await artRef.get();
+  if(!doc.exists){ showToast('Código no existe','error'); return; }
+
+  const art = doc.data();
+  if(cantidad > art.stock){ showToast('Cantidad excede stock','error'); return; }
+
+  const stockResultante = art.stock - cantidad;
+  await artRef.update({stock: stockResultante});
+  document.getElementById('stockActual').textContent = stockResultante;
+
+  await db.collection('movimientos').add({
+    timestamp: new Date().toISOString(),
+    tipo:'Salida',
+    codigo,
+    nombre: art.nombre,
+    cantidad,
+    areaEncargado: area,
+    fechaMovimiento: fecha,
+    comentario,
+    stockResultante
+  });
+
+  showToast('Salida registrada ✅','success');
   document.getElementById('formSalida').reset();
-  document.getElementById('stockActual').textContent=art.stock;
-  mostrarInventario();
+  document.getElementById('salidaFecha').value=new Date().toISOString().split('T')[0];
+  await mostrarInventario();
 }
 
-// EXPORTAR EXCEL
-function exportarExcel(tipo){
-  let data=[];
-  if(tipo==='inventario') data=getData('articulos');
-  else data=getData('movimientos').filter(m=>tipo==='entrada'?m.tipo==='Entrada':m.tipo==='Salida');
-  if(data.length===0){ showToast('No hay datos para exportar','error'); return; }
-  const ws=XLSX.utils.json_to_sheet(data);
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Datos');
-  XLSX.writeFile(wb,`${tipo}_${new Date().toISOString().slice(0,10)}.xlsx`);
+/* ========================= EXPORTS ========================= */
+async function exportExcelInventario(){
+  const snapshot = await db.collection('articulos').get();
+  const list = snapshot.docs.map(doc=>doc.data());
+  if(list.length===0){ showToast('No hay artículos para exportar','error'); return; }
+  const ws_data = list.map(a=>[a.codigo,a.nombre,a.stock]);
+  ws_data.unshift(['Código','Nombre','Stock']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Inventario');
+  XLSX.writeFile(wb,`inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
+async function exportExcelEntradas(){
+  const snapshot = await db.collection('movimientos').where('tipo','==','Entrada').get();
+  const list = snapshot.docs.map(doc=>doc.data());
+  if(list.length===0){ showToast('No hay entradas para exportar','error'); return; }
+  const ws_data = list.map(m=>[m.timestamp,m.tipo,m.codigo,m.nombre,m.cantidad,m.fechaMovimiento,m.numeroFactura,m.stockResultante]);
+  ws_data.unshift(['Timestamp','Tipo','Código','Nombre','Cantidad','FechaMovimiento','NumeroFactura','StockResultante']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Entradas');
+  XLSX.writeFile(wb,`entradas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function exportExcelSalidas(){
+  const snapshot = await db.collection('movimientos').where('tipo','==','Salida').get();
+  const list = snapshot.docs.map(doc=>doc.data());
+  if(list.length===0){ showToast('No hay salidas para exportar','error'); return; }
+  const ws_data = list.map(m=>[m.timestamp,m.tipo,m.codigo,m.nombre,m.cantidad,m.areaEncargado,m.fechaMovimiento,m.comentario,m.stockResultante]);
+  ws_data.unshift(['Timestamp','Tipo','Código','Nombre','Cantidad','ÁreaEncargado','FechaMovimiento','Comentario','StockResultante']);
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Salidas');
+  XLSX.writeFile(wb,`salidas_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+/* ========================= INIT FECHAS ========================= */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('entradaFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('salidaFecha').value=new Date().toISOString().split('T')[0];
+});
 </script>
 
 </body>

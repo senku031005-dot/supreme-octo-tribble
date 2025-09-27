@@ -1,343 +1,274 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inventario - App con Firebase y Login</title>
-<!-- Incluye XLSX para exportar Excel -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inventario - App con Login</title>
+<!-- XLSX -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
-:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000}
+:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
+/* NAV */
 nav{position:sticky;top:0;background:var(--primary);color:#fff;display:flex;gap:8px;padding:10px;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);flex-wrap:wrap}
 nav button{background:#9a007d;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;min-width:110px;max-width:170px;flex:1 1 auto;transition:all .18s}
 nav button:hover{background:var(--accent)}
 nav button.active{background:var(--accent);box-shadow:0 4px 8px rgba(0,0,0,.12)}
 nav button.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+/* CONTAINER */
 .container{max-width:920px;margin:16px auto;padding:0 12px 60px}
-section{display:none;margin-top:12px} section.active{display:block}
+/* SECTION */
+section{display:none;margin-top:12px}
+section.active{display:block}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
 .section-head h2{color:var(--primary);font-size:1.2rem}
+/* CARD */
 .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s}
 .card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(0,0,0,.08)}
+/* FORMS */
 label{display:block;font-size:.9rem;margin-bottom:6px;color:#444}
 input[type="text"],input[type="number"],input[type="date"],select{width:100%;padding:12px;border-radius:10px;border:1px solid #d0d0d0;margin-bottom:12px;font-size:1rem}
 input:focus,select:focus{outline:none;border:2px solid var(--primary)}
 button.submitBtn{width:100%;padding:12px;background:var(--primary);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:700}
 button.exportBtn{background:var(--primary);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+/* STOCK BADGE */
 #stockActualCard{display:inline-block;padding:8px 10px;border-radius:10px;background:rgba(247,140,42,.15);font-weight:700;margin-bottom:10px}
+/* TABLE */
 .table-wrap{overflow:auto;border-radius:10px;border:1px solid #eee}
 table{width:100%;border-collapse:collapse;min-width:420px}
 thead th{background:var(--primary);color:#fff;padding:10px;text-align:left;font-weight:700}
 tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
+/* TOAST */
 #toast{position:fixed;top:18px;right:18px;z-index:9999;min-width:220px;padding:12px 16px;color:#fff;border-radius:10px;font-weight:700;box-shadow:0 8px 22px rgba(0,0,0,.12);transform:translateY(-20px);opacity:0;transition:all .25s}
 #toast.show{transform:translateY(0);opacity:1}
-#toast.success{background:var(--success)} #toast.error{background:var(--error)}
-#loginOverlay{position:fixed;inset:0;background:linear-gradient(180deg, rgba(134,0,99,0.12), rgba(247,140,42,0.06));display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(6px)}
-#loginCard{width:100%;max-width:420px;background:#ffffff;border-radius:16px;padding:22px;box-shadow:0 18px 40px rgba(0,0,0,0.18);transform:translateY(8px);transition:transform .22s ease, box-shadow .22s;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial}
-#loginCard:focus-within{transform:translateY(0);box-shadow:0 28px 54px rgba(0,0,0,0.22)}
-.login-header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
-.login-logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#860063,#f78c2a);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;box-shadow:0 6px 18px rgba(134,0,99,0.18);font-size:1.05rem}
-.login-title{font-size:1.1rem;color:var(--primary,#860063);font-weight:800}
-.login-sub{font-size:0.9rem;color:#666;margin-top:4px}
-.login-field{margin-top:10px;position:relative}
-.login-field input[type="password"],.login-field input[type="text"]{width:100%;padding:12px 44px 12px 12px;border-radius:10px;border:1px solid #e2e2e2;font-size:1rem}
-.login-actions{display:flex;gap:10px;margin-top:14px}
-.btn-primary{background:linear-gradient(90deg,#860063,#9a007d);color:#fff;border:0;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer;flex:1;box-shadow:0 8px 18px rgba(134,0,99,0.12)}
-.btn-ghost{background:transparent;border:1px solid #ddd;padding:10px 12px;border-radius:10px;cursor:pointer;flex:1}
-.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;padding:6px;border-radius:8px;color:#666;font-weight:700}
-.small-note{font-size:0.85rem;color:#777;margin-top:10px}
-#capsIndicator{display:inline-block;margin-left:8px;font-size:0.85rem;color:#b33;font-weight:700;opacity:0;transition:opacity .18s}
-@media(max-width:480px){nav button{max-width:100%}.section-head h2{font-size:1.05rem}th,td{font-size:.95rem}}
-@media(max-width:420px){#loginCard{padding:16px;border-radius:12px}.login-logo{width:42px;height:42px}}
+#toast.success{background:var(--success)}
+#toast.error{background:var(--error)}
+/* LOGIN OVERLAY */
+#loginOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000}
+#loginCard{width:96%;max-width:420px;background:var(--card);border-radius:14px;padding:18px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+#loginCard h3{color:var(--primary);margin-bottom:12px}
+.login-actions{display:flex;gap:10px;margin-top:12px}
+.btn-ghost{background:transparent;border:1px solid #ddd;padding:10px;border-radius:8px;cursor:pointer}
+.btn-primary{background:var(--primary);color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer}
+@media(max-width:480px){ nav button{max-width:100%} .section-head h2{font-size:1.05rem} th,td{font-size:.95rem} }
 </style>
 </head>
 <body>
 
-<div id="loginOverlay">
-  <div class="box">
-    <h3>Login Admin</h3>
-    <input type="password" id="loginPassword" placeholder="Contraseña web">
-    <button id="btnLogin">Entrar</button>
-    <button id="btnGuest">Invitado</button>
+<!-- LOGIN -->
+<div id="loginOverlay" aria-hidden="false">
+  <div id="loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <h3 id="loginTitle">Inventario — Acceso</h3>
+    <input id="loginPassword" type="password" placeholder="Introduce la contraseña">
+    <div class="login-actions">
+      <button id="btnLogin" class="btn-primary">Entrar</button>
+      <button id="btnGuest" class="btn-ghost">Entrar como invitado</button>
+    </div>
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
 
+<!-- NAV -->
 <nav>
-  <button onclick="showTab('inventario')">Inventario</button>
+  <button id="navInventario" onclick="showTab('inventario')">Inventario</button>
   <button id="navEntrada" onclick="showTab('entrada')">Entrada</button>
   <button id="navSalida" onclick="showTab('salida')">Salida</button>
 </nav>
 
-<section id="inventario" class="active">
-  <h2>Inventario</h2>
-  <input id="filterInventario" placeholder="Buscar...">
-  <table id="tablaInventario">
-    <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <button onclick="exportExcelInventario()">Exportar Inventario</button>
-</section>
+<div class="container">
 
-<section id="entrada">
-  <h2>Registrar Entrada</h2>
-  <form id="formEntrada" onsubmit="registrarEntrada(event)">
-    <input id="entradaCodigo" placeholder="Código (dejar vacío para generar)">
-    <input id="entradaNombre" placeholder="Nombre">
-    <input id="entradaFecha" type="date">
-    <input id="entradaCantidad" type="number" placeholder="Cantidad">
-    <input id="entradaFactura" placeholder="Factura">
-    <button type="submit" id="btnRegistrarEntrada">Registrar Entrada</button>
-  </form>
-  <button onclick="exportExcelEntradas()" id="exportEntradasBtn">Exportar Entradas</button>
-</section>
+  <!-- INVENTARIO -->
+  <section id="inventario">
+    <div class="section-head">
+      <h2>Inventario Actual</h2>
+      <button class="exportBtn" onclick="exportarExcel('inventario')">Exportar Inventario</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap" style="max-height:420px;overflow:auto">
+        <table id="tablaInventario">
+          <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
-<section id="salida">
-  <h2>Registrar Salida</h2>
-  <form id="formSalida" onsubmit="registrarSalida(event)">
-    <input id="salidaCodigo" placeholder="Código" oninput="autocompletarSalida()">
-    <input id="salidaNombre" placeholder="Nombre" readonly>
-    <span>Stock actual: <span id="stockActual">0</span></span>
-    <input id="salidaArea" placeholder="Área encargado">
-    <input id="salidaFecha" type="date">
-    <input id="salidaCantidad" type="number" placeholder="Cantidad">
-    <input id="salidaComentario" placeholder="Comentario">
-    <button type="submit" id="btnRegistrarSalida">Registrar Salida</button>
-  </form>
-  <button onclick="exportExcelSalidas()" id="exportSalidasBtn">Exportar Salidas</button>
-</section>
+  <!-- ENTRADA -->
+  <section id="entrada">
+    <div class="section-head">
+      <h2>Entrada de Artículo</h2>
+      <button class="exportBtn" onclick="exportarExcel('entrada')">Exportar Entradas</button>
+    </div>
+    <div class="card">
+      <form id="formEntrada">
+        <label>Código (si es nuevo, se genera automático)</label>
+        <input id="entradaCodigo" type="text">
+        <label>Nombre *</label>
+        <input id="entradaNombre" type="text" required>
+        <label>Fecha *</label>
+        <input id="entradaFecha" type="date" required>
+        <label>Cantidad *</label>
+        <input id="entradaCantidad" type="number" min="1" required>
+        <label>Factura</label>
+        <input id="entradaFactura" type="text">
+        <button type="submit" class="submitBtn">Registrar Entrada</button>
+      </form>
+    </div>
+  </section>
 
-<script type="module">
-/* ===========================
-   Firebase Firestore
-   =========================== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, runTransaction, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  <!-- SALIDA -->
+  <section id="salida">
+    <div class="section-head">
+      <h2>Salida de Artículo</h2>
+      <button class="exportBtn" onclick="exportarExcel('salida')">Exportar Salidas</button>
+    </div>
+    <div class="card">
+      <form id="formSalida">
+        <label>Código *</label>
+        <input id="salidaCodigo" type="text" required>
+        <label>Nombre</label>
+        <input id="salidaNombre" type="text" readonly>
+        <div id="stockActualCard">Stock actual: <span id="stockActual">0</span></div>
+        <label>Área/Encargado *</label>
+        <input id="salidaArea" type="text" required>
+        <label>Fecha *</label>
+        <input id="salidaFecha" type="date" required>
+        <label>Cantidad *</label>
+        <input id="salidaCantidad" type="number" min="1" required>
+        <label>Comentario</label>
+        <input id="salidaComentario" type="text">
+        <button type="submit" class="submitBtn">Registrar Salida</button>
+      </form>
+    </div>
+  </section>
 
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
-};
+</div>
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+<script>
+let role='locked';
+const toast=document.getElementById('toast');
+function showToast(msg,type='success'){toast.textContent=msg;toast.className='show '+(type==='error'?'error':'success');setTimeout(()=>{toast.className='';},3000);}
+const ADMIN_PASSWORD='ofi123';
 
-/* ===========================
-   Login web y estado de usuario
-   =========================== */
-const ADMIN_PASSWORD = 'ofi123';
-let role = 'locked'; // 'locked' | 'guest' | 'admin'
-
-let loginOverlay, btnLogin, btnGuest, loginPassword, toastElem;
-
-document.addEventListener('DOMContentLoaded', () => {
-  loginOverlay = document.getElementById('loginOverlay');
-  btnLogin = document.getElementById('btnLogin');
-  btnGuest = document.getElementById('btnGuest');
-  loginPassword = document.getElementById('loginPassword');
-  toastElem = document.getElementById('toast');
-
-  btnGuest.addEventListener('click', () => {
-    role = 'guest';
-    loginOverlay.style.display = 'none';
-    initAfterLogin();
-    showToast('Acceso como Invitado — Solo inventario','success');
-  });
-
-  btnLogin.addEventListener('click', () => {
-    const pwd = loginPassword.value || '';
-    if(pwd === ADMIN_PASSWORD){
-      role = 'admin';
-      loginOverlay.style.display = 'none';
-      initAfterLogin();
-      showToast('Acceso correcto. Bienvenido (Admin)','success');
-    } else showToast('Contraseña incorrecta','error');
-  });
-
-  // Inicializar fechas
-  document.getElementById('entradaFecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('salidaFecha').value = new Date().toISOString().split('T')[0];
-});
-
-/* ===========================
-   Funciones de UI
-   =========================== */
-function showToast(msg, type='success'){
-  toastElem.textContent = msg;
-  toastElem.className = 'show ' + (type==='error'?'error':'success');
-  setTimeout(()=>{ toastElem.className=''; }, 3200);
+// LOGIN
+document.getElementById('btnLogin').onclick=()=>{
+  const pwd=document.getElementById('loginPassword').value;
+  if(pwd===ADMIN_PASSWORD){ role='admin'; document.getElementById('loginOverlay').style.display='none'; initApp(); showToast('Bienvenido Admin');}
+  else showToast('Contraseña incorrecta','error');
+}
+document.getElementById('btnGuest').onclick=()=>{
+  role='guest'; document.getElementById('loginOverlay').style.display='none'; initApp(); showToast('Modo Invitado');
 }
 
+// NAV
 function showTab(tab){
-  if(role==='guest' && (tab==='entrada'||tab==='salida')){ showToast('Acceso denegado. Modo Invitado: solo Inventario','error'); tab='inventario'; }
+  if(role==='guest' && (tab==='entrada'||tab==='salida')){ showToast('Acceso denegado','error'); tab='inventario'; }
   document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
-  document.getElementById(tab)?.classList.add('active');
-  document.querySelectorAll('nav button').forEach(b=>{
-    if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(tab)) b.classList.add('active');
-    else b.classList.remove('active');
+  document.getElementById(tab).classList.add('active');
+}
+
+// LOCALSTORAGE DATA
+function getData(key){ return JSON.parse(localStorage.getItem(key)||'[]'); }
+function setData(key,data){ localStorage.setItem(key,JSON.stringify(data)); }
+
+// INIT APP
+function initApp(){
+  showTab('inventario');
+  mostrarInventario();
+  document.getElementById('formEntrada').onsubmit=registrarEntrada;
+  document.getElementById('formSalida').onsubmit=registrarSalida;
+  document.getElementById('salidaCodigo').oninput=autocompletarSalida;
+}
+
+// INVENTARIO
+function mostrarInventario(){
+  const tbody=document.querySelector('#tablaInventario tbody');
+  tbody.innerHTML='';
+  const inventario=getData('articulos');
+  inventario.forEach(a=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
+    tbody.appendChild(tr);
   });
 }
 
-/* ===========================
-   Inicialización después de login
-   =========================== */
-function initAfterLogin(){
-  showTab('inventario');
-  const navEntrada = document.getElementById('navEntrada');
-  const navSalida = document.getElementById('navSalida');
-  const btnRegistrarEntrada = document.getElementById('btnRegistrarEntrada');
-  const btnRegistrarSalida = document.getElementById('btnRegistrarSalida');
-  const exportEntradasBtn = document.getElementById('exportEntradasBtn');
-  const exportSalidasBtn = document.getElementById('exportSalidasBtn');
-  const exportInventarioBtn = document.getElementById('exportInventarioBtn');
+// GENERAR CODIGO
+function generarCodigo(){
+  const inventario=getData('articulos');
+  let max=0; inventario.forEach(a=>{ const n=parseInt(a.codigo.slice(2)); if(!isNaN(n) && n>max) max=n; });
+  return 'AP'+String(max+1).padStart(3,'0');
+}
 
-  if(role==='admin'){
-    navEntrada.classList.remove('disabled'); navSalida.classList.remove('disabled');
-    btnRegistrarEntrada.disabled=false; btnRegistrarSalida.disabled=false;
-    exportEntradasBtn.disabled=false; exportSalidasBtn.disabled=false; exportInventarioBtn.disabled=false;
-    navEntrada.style.display=''; navSalida.style.display='';
-  } else {
-    navEntrada.classList.add('disabled'); navSalida.classList.add('disabled');
-    btnRegistrarEntrada.disabled=true; btnRegistrarSalida.disabled=true;
-    exportEntradasBtn.disabled=true; exportSalidasBtn.disabled=true; exportInventarioBtn.disabled=false;
-    navEntrada.style.display='none'; navSalida.style.display='none';
-  }
-
+// REGISTRAR ENTRADA
+function registrarEntrada(e){
+  e.preventDefault();
+  if(role!=='admin'){ showToast('No autorizado','error'); return; }
+  let codigo=document.getElementById('entradaCodigo').value.trim();
+  const nombre=document.getElementById('entradaNombre').value.trim();
+  const fecha=document.getElementById('entradaFecha').value;
+  const cantidad=parseInt(document.getElementById('entradaCantidad').value);
+  const factura=document.getElementById('entradaFactura').value.trim();
+  if(!nombre||!fecha||isNaN(cantidad)||cantidad<=0){ showToast('Complete todos los campos','error'); return; }
+  if(!codigo) codigo=generarCodigo();
+  const inventario=getData('articulos');
+  let articulo=inventario.find(a=>a.codigo===codigo);
+  if(articulo) articulo.stock+=cantidad;
+  else inventario.push({codigo,nombre,stock:cantidad});
+  setData('articulos',inventario);
+  // Guardar movimiento
+  const movimientos=getData('movimientos'); movimientos.push({tipo:'Entrada',codigo,nombre,cantidad,fecha,numeroFactura:factura,comentario:'',areaEncargado:'',stockResultante:articulo?articulo.stock:cantidad});
+  setData('movimientos',movimientos);
+  showToast('Entrada registrada');
+  document.getElementById('formEntrada').reset();
   mostrarInventario();
 }
 
-/* ===========================
-   Funciones Firebase
-   =========================== */
-
-// Mostrar inventario (lectura de Firestore)
-async function mostrarInventario(){
-  const tbody = document.querySelector('#tablaInventario tbody');
-  const filterText = (document.getElementById('filterInventario')?.value||'').toLowerCase();
-  tbody.innerHTML='';
-
-  try{
-    const q = query(collection(db,'articulos'), orderBy('codigo'));
-    const snap = await getDocs(q);
-    snap.forEach(docSnap=>{
-      const a = docSnap.data();
-      if(filterText && !(a.codigo.toLowerCase().includes(filterText)||(a.nombre||'').toLowerCase().includes(filterText))) return;
-      const tr = document.createElement('tr');
-      tr.innerHTML=`<td>${a.codigo}</td><td>${a.nombre}</td><td>${a.stock}</td>`;
-      tbody.appendChild(tr);
-    });
-  }catch(e){ console.error(e); showToast('Error cargando inventario','error'); }
+// AUTOCOMPLETAR SALIDA
+function autocompletarSalida(){
+  const codigo=document.getElementById('salidaCodigo').value.trim();
+  const inventario=getData('articulos');
+  const art=inventario.find(a=>a.codigo===codigo);
+  document.getElementById('salidaNombre').value=art?art.nombre:'';
+  document.getElementById('stockActual').textContent=art?art.stock:0;
 }
 
-// Generar código AP###
-async function generarCodigo(){
-  try{
-    const snap = await getDocs(query(collection(db,'articulos'), orderBy('codigo')));
-    let max=0;
-    snap.forEach(d=>{ const c=d.data().codigo; if(c.startsWith('AP')){ const n=parseInt(c.slice(2),10); if(!isNaN(n) && n>max) max=n; } });
-    max++; return 'AP'+String(max).padStart(3,'0');
-  }catch(e){ return 'AP'+Math.floor(Math.random()*900+100); }
-}
-
-// Registrar Entrada
-async function registrarEntrada(e){
-  e?.preventDefault();
+// REGISTRAR SALIDA
+function registrarSalida(e){
+  e.preventDefault();
   if(role!=='admin'){ showToast('No autorizado','error'); return; }
-  const codigoInput = document.getElementById('entradaCodigo');
-  const nombreInput = document.getElementById('entradaNombre');
-  const fechaInput = document.getElementById('entradaFecha');
-  const cantidadInput = document.getElementById('entradaCantidad');
-  const facturaInput = document.getElementById('entradaFactura');
-
-  let codigo=codigoInput.value.trim();
-  const nombre=nombreInput.value.trim();
-  const fecha=fechaInput.value;
-  const cantidad=parseInt(cantidadInput.value,10);
-  const factura=facturaInput.value.trim();
-
-  if(!nombre || !fecha || isNaN(cantidad) || cantidad<=0){ showToast('Complete campos','error'); return; }
-  if(new Date(fecha)>new Date()){ showToast('Fecha futura','error'); return; }
-
-  try{
-    if(!codigo) codigo = await generarCodigo();
-    const artRef = doc(db,'articulos',codigo);
-    await runTransaction(db, async tx=>{
-      const artSnap = await tx.get(artRef);
-      let newStock = cantidad;
-      if(artSnap.exists()){ newStock = (artSnap.data().stock||0)+cantidad; tx.update(artRef,{nombre,stock:newStock}); }
-      else tx.set(artRef,{codigo,nombre,stock:newStock});
-      const mov = { timestamp:new Date().toISOString(), tipo:'Entrada', codigo, nombre, cantidad, fechaMovimiento:fecha, numeroFactura:factura||'', comentario:'', areaEncargado:'', stockResultante:newStock };
-      tx.set(doc(collection(db,'movimientos')), mov);
-    });
-    document.getElementById('formEntrada').reset();
-    document.getElementById('entradaFecha').value=new Date().toISOString().split('T')[0];
-    mostrarInventario();
-    showToast('Entrada registrada','success');
-  }catch(e){ console.error(e); showToast('Error registrar entrada','error'); }
+  const codigo=document.getElementById('salidaCodigo').value.trim();
+  const area=document.getElementById('salidaArea').value.trim();
+  const fecha=document.getElementById('salidaFecha').value;
+  const cantidad=parseInt(document.getElementById('salidaCantidad').value);
+  const comentario=document.getElementById('salidaComentario').value.trim();
+  if(!codigo||!area||!fecha||isNaN(cantidad)||cantidad<=0){ showToast('Complete todos los campos','error'); return; }
+  const inventario=getData('articulos'); const art=inventario.find(a=>a.codigo===codigo);
+  if(!art){ showToast('Artículo no existe','error'); return; }
+  if(cantidad>art.stock){ showToast('Stock insuficiente','error'); return; }
+  art.stock-=cantidad;
+  setData('articulos',inventario);
+  const movimientos=getData('movimientos'); movimientos.push({tipo:'Salida',codigo,areaEncargado:area,fechaMovimiento:fecha,cantidad,comentario,stockResultante:art.stock,nombre:art.nombre});
+  setData('movimientos',movimientos);
+  showToast('Salida registrada');
+  document.getElementById('formSalida').reset();
+  document.getElementById('stockActual').textContent=art.stock;
+  mostrarInventario();
 }
 
-// Autocompletar salida
-async function autocompletarSalida(){
-  const code = document.getElementById('salidaCodigo').value.trim();
-  if(!code){ document.getElementById('salidaNombre').value=''; document.getElementById('stockActual').textContent=0; return; }
-  try{
-    const artSnap = await getDoc(doc(db,'articulos',code));
-    const art = artSnap.exists()?artSnap.data():null;
-    document.getElementById('salidaNombre').value = art?art.nombre:'';
-    document.getElementById('stockActual').textContent = art?art.stock:0;
-  }catch(e){ console.error(e); }
+// EXPORTAR EXCEL
+function exportarExcel(tipo){
+  let data=[];
+  if(tipo==='inventario') data=getData('articulos');
+  else data=getData('movimientos').filter(m=>tipo==='entrada'?m.tipo==='Entrada':m.tipo==='Salida');
+  if(data.length===0){ showToast('No hay datos para exportar','error'); return; }
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Datos');
+  XLSX.writeFile(wb,`${tipo}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
-
-// Registrar salida
-async function registrarSalida(e){
-  e?.preventDefault();
-  if(role!=='admin'){ showToast('No autorizado','error'); return; }
-  const codigo = document.getElementById('salidaCodigo').value.trim();
-  const area = document.getElementById('salidaArea').value.trim();
-  const fecha = document.getElementById('salidaFecha').value;
-  const cantidad = parseInt(document.getElementById('salidaCantidad').value,10);
-  const comentario = document.getElementById('salidaComentario').value.trim();
-
-  if(!codigo || !area || !fecha || isNaN(cantidad)||cantidad<=0){ showToast('Complete campos','error'); return; }
-  if(new Date(fecha)>new Date()){ showToast('Fecha futura','error'); return; }
-
-  try{
-    const artRef = doc(db,'articulos',codigo);
-    await runTransaction(db, async tx=>{
-      const artSnap = await tx.get(artRef);
-      if(!artSnap.exists()) throw new Error('Código no existe');
-      const newStock = (artSnap.data().stock||0) - cantidad;
-      if(newStock<0) throw new Error('Cantidad excede stock');
-      tx.update(artRef,{stock:newStock});
-      const mov = { timestamp:new Date().toISOString(), tipo:'Salida', codigo, nombre:artSnap.data().nombre, cantidad, fechaMovimiento:fecha, numeroFactura:'', comentario, areaEncargado:area, stockResultante:newStock };
-      tx.set(doc(collection(db,'movimientos')), mov);
-    });
-    document.getElementById('formSalida').reset();
-    document.getElementById('salidaFecha').value=new Date().toISOString().split('T')[0];
-    document.getElementById('stockActual').textContent=0;
-    mostrarInventario();
-    showToast('Salida registrada','success');
-  }catch(e){ console.error(e); showToast(e.message||'Error registrar salida','error'); }
-}
-
-/* ===========================
-   Exportar Excel (misma lógica)
-   =========================== */
-function generarIdMovimiento(){ const now=new Date(); return now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0'); }
-
-window.showTab=showTab;
-window.mostrarInventario=mostrarInventario;
-window.registrarEntrada=registrarEntrada;
-window.autocompletarSalida=autocompletarSalida;
-window.registrarSalida=registrarSalida;
 </script>
+
 </body>
 </html>
-

@@ -7,13 +7,50 @@
 <!-- Incluye XLSX para exportar Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-/* Estilos mínimos para toast y overlay */
-#toast {position: fixed; bottom: 20px; left:50%; transform: translateX(-50%); padding:10px 20px; border-radius:5px; display:none; color:#fff;}
-#toast.show {display:block;}
-#toast.success {background:green;}
-#toast.error {background:red;}
-#loginOverlay {position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:1000;}
-#loginOverlay .box {background:#fff; padding:20px; border-radius:5px;}
+:root{--primary:#860063;--accent:#f78c2a;--bg:#f2f2f2;--card:#fff;--text:#222;--success:#2d862d;--error:#cc0000}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
+nav{position:sticky;top:0;background:var(--primary);color:#fff;display:flex;gap:8px;padding:10px;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);flex-wrap:wrap}
+nav button{background:#9a007d;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;min-width:110px;max-width:170px;flex:1 1 auto;transition:all .18s}
+nav button:hover{background:var(--accent)}
+nav button.active{background:var(--accent);box-shadow:0 4px 8px rgba(0,0,0,.12)}
+nav button.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.container{max-width:920px;margin:16px auto;padding:0 12px 60px}
+section{display:none;margin-top:12px} section.active{display:block}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.section-head h2{color:var(--primary);font-size:1.2rem}
+.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(0,0,0,.08)}
+label{display:block;font-size:.9rem;margin-bottom:6px;color:#444}
+input[type="text"],input[type="number"],input[type="date"],select{width:100%;padding:12px;border-radius:10px;border:1px solid #d0d0d0;margin-bottom:12px;font-size:1rem}
+input:focus,select:focus{outline:none;border:2px solid var(--primary)}
+button.submitBtn{width:100%;padding:12px;background:var(--primary);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:700}
+button.exportBtn{background:var(--primary);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+#stockActualCard{display:inline-block;padding:8px 10px;border-radius:10px;background:rgba(247,140,42,.15);font-weight:700;margin-bottom:10px}
+.table-wrap{overflow:auto;border-radius:10px;border:1px solid #eee}
+table{width:100%;border-collapse:collapse;min-width:420px}
+thead th{background:var(--primary);color:#fff;padding:10px;text-align:left;font-weight:700}
+tbody td{padding:10px;border-bottom:1px solid #f0f0f0}
+#toast{position:fixed;top:18px;right:18px;z-index:9999;min-width:220px;padding:12px 16px;color:#fff;border-radius:10px;font-weight:700;box-shadow:0 8px 22px rgba(0,0,0,.12);transform:translateY(-20px);opacity:0;transition:all .25s}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--success)} #toast.error{background:var(--error)}
+#loginOverlay{position:fixed;inset:0;background:linear-gradient(180deg, rgba(134,0,99,0.12), rgba(247,140,42,0.06));display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(6px)}
+#loginCard{width:100%;max-width:420px;background:#ffffff;border-radius:16px;padding:22px;box-shadow:0 18px 40px rgba(0,0,0,0.18);transform:translateY(8px);transition:transform .22s ease, box-shadow .22s;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+#loginCard:focus-within{transform:translateY(0);box-shadow:0 28px 54px rgba(0,0,0,0.22)}
+.login-header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.login-logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#860063,#f78c2a);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;box-shadow:0 6px 18px rgba(134,0,99,0.18);font-size:1.05rem}
+.login-title{font-size:1.1rem;color:var(--primary,#860063);font-weight:800}
+.login-sub{font-size:0.9rem;color:#666;margin-top:4px}
+.login-field{margin-top:10px;position:relative}
+.login-field input[type="password"],.login-field input[type="text"]{width:100%;padding:12px 44px 12px 12px;border-radius:10px;border:1px solid #e2e2e2;font-size:1rem}
+.login-actions{display:flex;gap:10px;margin-top:14px}
+.btn-primary{background:linear-gradient(90deg,#860063,#9a007d);color:#fff;border:0;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer;flex:1;box-shadow:0 8px 18px rgba(134,0,99,0.12)}
+.btn-ghost{background:transparent;border:1px solid #ddd;padding:10px 12px;border-radius:10px;cursor:pointer;flex:1}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;padding:6px;border-radius:8px;color:#666;font-weight:700}
+.small-note{font-size:0.85rem;color:#777;margin-top:10px}
+#capsIndicator{display:inline-block;margin-left:8px;font-size:0.85rem;color:#b33;font-weight:700;opacity:0;transition:opacity .18s}
+@media(max-width:480px){nav button{max-width:100%}.section-head h2{font-size:1.05rem}th,td{font-size:.95rem}}
+@media(max-width:420px){#loginCard{padding:16px;border-radius:12px}.login-logo{width:42px;height:42px}}
 </style>
 </head>
 <body>
@@ -303,3 +340,4 @@ window.registrarSalida=registrarSalida;
 </script>
 </body>
 </html>
+
